@@ -1,0 +1,106 @@
+plugins {
+    id 'org.asciidoctor.jvm.pdf'
+    id 'org.asciidoctor.jvm.convert'
+    id 'org.asciidoctor.jvm.gems' version '4.0.2'
+    id 'ch.nomisp.confluence.publisher' version '0.5.0'
+}
+
+repositories {
+    ruby {
+        gems()
+    }
+    jcenter()
+}
+
+dependencies {
+    //    //asciidoctorGems 'rubygems:rouge:4.2.0'
+    asciidoctorGems 'rubygems:asciidoctor-diagram:2.3.0'
+    asciidoctorGems 'rubygems:asciidoctor-multipage:0.0.18'
+    asciidoctorGems 'rubygems:asciidoctor-diagram-plantuml:1.2024.3'
+    asciidoctorGems 'rubygems:asciidoctor-diagram-batik:1.17'
+}
+
+asciidoctor {
+
+    baseDirFollowsSourceFile()
+    dependsOn asciidoctorGemsPrepare
+    sourceDir '.'
+    sources {
+        include 'architecture/**/*.adoc'
+        include 'business/**/*.adoc'
+        exclude '*/fragments/**'
+        exclude 'fragments/**'
+        exclude '**/_*'
+    }
+    outputOptions {
+        backends 'html5'
+        //backends 'multipage_html5'
+    }
+    asciidoctorj {
+        modules {
+            diagram {
+                version '2.3.0'
+            }
+        }
+        //requires 'asciidoctor-multipage'
+        attributes 'multipage-level': 2
+        attributes 'plantumlconfig': file("${rootDir}/theme/plantuml.cfg")
+        attributes 'plantuml-dir': file("${rootDir}/diagrams")
+        attributes stylesheet: "${rootDir}/theme/main.css"
+    }
+}
+
+
+
+asciidoctorPdf {
+    jvm {
+        // Fix issue with JDK16+
+        jvmArgs("--add-opens", "java.base/sun.nio.ch=ALL-UNNAMED", "--add-opens", "java.base/java.io=ALL-UNNAMED")
+    }
+    dependsOn asciidoctorGemsPrepare
+    theme 'main'
+    baseDirFollowsSourceFile()
+    sourceDir '.'
+    sources {
+        include 'architecture/**/*.adoc'
+        include 'business/**/*.adoc'
+        exclude '*/fragments/**'
+        exclude 'fragments/**'
+        exclude '**/_*'
+    }
+    pdfThemes {
+        local 'main', {
+            themeDir = file("../theme")
+            themeName = 'main'
+        }
+    }
+    asciidoctorj {
+        modules {
+            diagram {
+                version '2.3.0'
+            }
+        }
+        requires 'rouge'
+        attributes 'build-gradle': file('build.gradle'),
+                'plantumlconfig': file("${rootDir}/theme/plantuml.cfg"),
+                'endpoint-url': 'http://example.org',
+                'source-highlighter': 'rouge',
+                //'imagesdir': './images',
+                'toc': 'left',
+                'icons': 'font',
+                'idprefix': '',
+                'idseparator': '-',
+                'plantuml-dir': file("${rootDir}/diagrams")
+    }
+}
+
+confluencePublisher {
+    asciiDocRootFolder = file("./business")
+    outputDir = "${buildDir}/docs/confluence"
+    rootConfluenceUrl = "$confluenceUrl"
+    spaceKey = '~11111111111111111111111111111111111'
+    ancestorId = '1111111111'
+    username = "$confluenceUser"
+    password = "$confluenceApiKey"
+    notifyWatchers = false
+}

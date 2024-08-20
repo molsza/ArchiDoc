@@ -1,0 +1,107 @@
+plugins {
+    id 'org.asciidoctor.jvm.pdf'
+    id 'org.asciidoctor.jvm.gems'
+    id 'org.asciidoctor.jvm.convert'
+}
+
+repositories {
+    jcenter()
+    ruby.gems()
+}
+
+dependencies {
+    asciidoctorGems 'rubygems:asciidoctor-diagram:2.3.0'
+    asciidoctorGems 'rubygems:asciidoctor-multipage:0.0.19'
+    asciidoctorGems 'rubygems:asciidoctor-diagram-plantuml:1.2024.3'
+}
+
+task generateFileList {
+    doLast {
+        def outputFile = new File("docs/Architecture-Decisions.adoc")
+        outputFile.delete()
+        def directories = ['Strategic', 'Project1', 'Project2']
+        def fileContent = ""
+        directories.eachWithIndex { item, idx ->
+            def file = new File("docs/"+item);
+            if (file.isDirectory()) {
+                fileContent += "\n== ${idx + 1}. ${file.getName()}\n\n${file.listFiles().findAll {f -> f.path.endsWith("md") || f.path.endsWith("adoc")}.collect { i -> genEntry(i, outputFile) }.join("\n").stripIndent()}"
+            }
+        }
+
+        outputFile.text = """
+:chapter-signifier:
+:toc: left
+:sectnums!:
+= Architecture Decisions    
+
+toc::[]
+
+$fileContent
+        """.stripIndent()
+    }
+}
+
+asciidoctor {
+    baseDirFollowsSourceFile()
+    dependsOn asciidoctorGemsPrepare
+    dependsOn generateFileList
+    outputOptions {
+        backends 'multipage_html5'
+    }
+    sourceDir 'docs'
+    sources {
+        include 'Architecture-Decisions.adoc'
+    }
+    asciidoctorj {
+        modules {
+            diagram.use()
+        }
+        requires 'asciidoctor-multipage'
+        attributes 'multipage-level': 2
+        attributes 'plantumlconfig': file("../theme/plantuml.cfg")
+        attributes stylesheet: "../../theme/main.css"
+    }
+}
+
+asciidoctorPdf {
+    dependsOn asciidoctorGemsPrepare
+    dependsOn generateFileList
+    theme 'main'
+    baseDirFollowsSourceFile()
+    sourceDir 'docs'
+
+    pdfThemes {
+        local 'main', {
+            themeDir = file("../theme")
+            themeName = 'main'
+        }
+    }
+    sources {
+        include 'Architecture-Decisions.adoc'
+    }
+    asciidoctorj {
+        modules {
+            diagram.use()
+        }
+        requires 'rouge'
+        attributes 'build-gradle': file('build.gradle'),
+                'plantumlconfig': file("../theme/plantuml.cfg"),
+                'endpoint-url': 'http://example.org',
+                'source-highlighter': 'rouge',
+                'imagesdir': './images',
+                'toc': 'macro',
+                'icons': 'font',
+                'idprefix': '',
+                'idseparator': '-'
+    }
+}
+
+
+static def genEntry(file, outputFile) {
+    def reader = new FileReader(file)
+    def firstLine = reader.readLine()
+    reader.close()
+    """    
+    [#${file.getName().substring(0,4)}]
+    include::${outputFile.toPath().parent.relativize(file.toPath()).toString().replace(File.separator, "/")}[leveloffset=+1]""".stripIndent()
+}

@@ -1,0 +1,12 @@
+:toc: left
+:toclevels: 3
+:sectnumlevels: 4
+:sectnums:
+:partnums:
+:chapter-signifier:
+:toc-title:
+:version-label:
+:figure-caption: Figure
+:table-caption: Table
+:appendix-caption: Appendix
+:title-page:

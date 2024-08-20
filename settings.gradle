@@ -1,0 +1,3 @@
+rootProject.name = 'archi-doc'
+include 'adr'
+include 'documents'

@@ -1,0 +1,1 @@
+Place here any documents that you want to include and share between multiple documents. It can be a set of links, common configurations, glossary.  
