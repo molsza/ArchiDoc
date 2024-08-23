@@ -39,10 +39,14 @@ var drivingView = null; // will be set to the selected view that has all the gro
 var DefaultInclusionSettings = {
     "Overwrite": true, //if false then the file will not be overwritten if exists
     "CreateChildAdoc": true, // if true will generate a separate adoc file for this group
+    "FlatThisGroup": false, // if true will not create a section for this group, but will still process the views
     "IncludeDiagram": true, // if true, will include the view's diagram
     "IncludeDocumentation": true, // if true, will include the view's documentation text (which itself can have markdown, by the way)
     "IncludeViewElements": true, // if true, will include a catalogue of the view's elements
     "IncludeProperties": false, // if true, will include the "properties" field in a catalogue of elements from a view
+    "CreateSectionPerView": false, // if true, will create an individual section for each view in a group,
+    "IncludeElementsWithoutDocumentation": true, // if true, will include elements without documentation in the list of elements,
+    "FilterViewElements": [] // if set, will only include elements of the specified types in the list of elements
     //TODO: "ElementColumns": [{name: "Name", field: "name"}], // overrides the list of columns to include in the element catalogue (need to find a structure we can easily set in a property that we hopefully don't have to parse)
 };
 
@@ -175,7 +179,13 @@ function printViewElements(view, level, settings) {
 function printViewElementsAsList(view, level, settings) {
     var objList = [];
     $(view).find("element").each(function (viewObj) {
-        objList.push(viewObj);
+        if(settings.FilterViewElements && settings.FilterViewElements.length > 0) {
+            if(settings.FilterViewElements.indexOf(viewObj.type) > -1) {
+                objList.push(viewObj);
+            }
+        } else {
+            objList.push(viewObj);
+        }
     });
 
     objList.sort(); // ensures the output groups by object type    
@@ -183,10 +193,13 @@ function printViewElementsAsList(view, level, settings) {
     // For each row (element)
     var i;
     for (i in objList) {
+        var docs = replaceNL(objList[i]["documentation"]);
+        if(docs == "" && settings.IncludeElementsWithoutDocumentation == false) {
+            continue;
+        }
         outInfo += "\n* ";
         outInfo += replaceNL(objList[i]["name"]);        
         outInfo += " ("+replaceNL(objList[i]["type"]) +")";
-        var docs = replaceNL(objList[i]["documentation"]);
         if (docs != "") {
             outInfo += "\n+\n--\n";
             outInfo += docs;
@@ -241,7 +254,7 @@ function getViews(Level, Levelobj, settings) {
             var myView = viewList[k][0];
             var myRef = viewList[k][1];
 
-            if (viewList.length > 1) { 
+            if (settings["CreateSectionPerView"] === true) {
                 outputHdr(Level + 1, myView.name, true);
             }
 
@@ -287,12 +300,18 @@ function getViews(Level, Levelobj, settings) {
                     //imageURL = thisPath.replaceAll(" ", "%20");
                     //outInfo += "\n![Diagram: " + myView.name + "][" + myView.name + "]\n";
                     //outInfo += "\n[" + myView.name + "]: " + imageURL + ".png\n";
+                    var caption = myView.prop("caption") ? myView.prop("caption") : myView.name;
+                    if(caption) {
+                        caption = "\n\n." + caption;
+                    }
                     if((maxWidth-minWidth) > 1.6 * pageWidth) {
                         outInfo += "\n[.landscape]\n<<<"
-                        outInfo += "\n\nimage::images/" + myView.name + ".png[pdfwidth=100%]\n"
+                        outInfo += caption
+                        outInfo += "\nimage::images/" + myView.name + ".png[pdfwidth=100%]\n"
                         outInfo += "\n[.portrait]\n<<<"
                     } else {
-                        outInfo += "\n\nimage::images/" + myView.name + ".png[pdfwidth=" + Math.ceil(widthPercentage) + "%]\n"
+                        outInfo += caption
+                        outInfo += "\nimage::images/" + myView.name + ".png[pdfwidth=" + Math.ceil(widthPercentage) + "%]\n"
                     }
                 }
             }
@@ -318,40 +337,44 @@ function addSpace(numSpaces) {
     return rtnText;
 }
 
-function outputHdr(Level, Name, AddLink, Doc, ) {
+function outputHdr(Level, Name, AddLink, Doc, settings = {}) {
 
     var indent = "";
     var tocIndent = "";
 
-    for (var i = 0; i < Level; i++) {
-        indent = indent + "=";
-    }
-    for (var j = 0; j < Level - 1; j++) { // ToC needs one less indent tab.
-        tocIndent = tocIndent + "\t";
-    }
-
-    if (Name != "Katalog elementów") {
-        console.log(addSpace(Level - 1), Name);
-    }
-
-    var outHdr = indent + " " + Name;
-
-    // put a fudge post processing to insert 'NEWPAGE' in for header levels listed in listofNewpageheaders
-    if (hardNewpage) {
-        if (listofNewpageheaders.indexOf(Level) != -1) {
-            outInfo += '\nNEWPAGE\n';
+    if(settings && !settings.FlatThisGroup) {
+        for (var i = 0; i < Level; i++) {
+            indent = indent + "=";
         }
-    }
-    
-    // Add a link to table of contents (TOC), if requested
-    if (AddLink) {
-        var thisLink = generateLink(Name);
-        outInfo += "\n" + "[#" + thisLink + ", reftext = \""+ Name +"\"]";        
-    }
-    outInfo += "\n" + outHdr + "\n";
+        for (var j = 0; j < Level - 1; j++) { // ToC needs one less indent tab.
+            tocIndent = tocIndent + "\t";
+        }
 
+        if (Name != "Katalog elementów") {
+            console.log(addSpace(Level - 1), Name);
+        }
+
+        var outHdr = indent + " " + Name;
+
+
+        // put a fudge post processing to insert 'NEWPAGE' in for header levels listed in listofNewpageheaders
+        if (hardNewpage) {
+            if (listofNewpageheaders.indexOf(Level) != -1) {
+                outInfo += '\nNEWPAGE\n';
+            }
+        }
+
+
+        // Add a link to table of contents (TOC), if requested
+        if (AddLink) {
+            var thisLink = generateLink(Name);
+            outInfo += "\n" + "[#" + thisLink + ", reftext = \""+ Name +"\"]";
+        }
+        outInfo += "\n" + outHdr + "\n";
+
+    }
     if (Doc) {
-        outInfo += "\n" + Doc;
+        outInfo += "\n" + Doc+ "\n";
     }
 
 }
@@ -496,15 +519,39 @@ function getGroupInclusionSettings(settingsElement, defaultSettings) {
     var checkIncludeElements = settingsElement.prop("IncludeViewElements");
     var checkIncludeProperties = settingsElement.prop("IncludeProperties");
     var checkCreateChildAdoc = settingsElement.prop("CreateChildAdoc");
+    var createSectionPerView = settingsElement.prop("CreateSectionPerView");
+    var filterViewElements = settingsElement.prop("FilterViewElements");
+    var flatThisGroup = settingsElement.prop("FlatThisGroup");
+    var checkIncludeElementsWithoutDocumentation = settingsElement.prop("IncludeElementsWithoutDocumentation");
     var checkOverwrite = settingsElement.prop("Overwrite");
 
     if (checkIncludeDiagram !== null) {
         settings["IncludeDiagram"] = checkIncludeDiagram === "true" ? true : false;
     }
 
-    settings["CreateChildAdoc"] = false
+    if (checkIncludeElementsWithoutDocumentation !== null) {
+        settings["IncludeElementsWithoutDocumentation"] = checkIncludeElementsWithoutDocumentation === "true" ? true : false;
+    }
+
+    if (createSectionPerView !== null) {
+        settings["CreateSectionPerView"] = createSectionPerView === "true" ? true : false;
+    }
+
+    if (filterViewElements !== null) {
+        settings["FilterViewElements"] = filterViewElements.replaceAll(" ","").split(",");
+    }
+
+    if (flatThisGroup !== null) {
+        settings["FlatThisGroup"] = flatThisGroup === "true" ? true : false;
+    } else {
+        settings["FlatThisGroup"] = false;
+    }
+
     if (checkCreateChildAdoc !== null) {
         settings["CreateChildAdoc"] = checkCreateChildAdoc === "true" ? true : false;
+    }
+    if(settings["FlatThisGroup"] === true) {
+        settings["CreateChildAdoc"] = false;
     }
 
     if (checkOverwrite !== null) {
@@ -575,7 +622,7 @@ if (useDrivingView()) {
                     level: 0,
                     fileName: mainFileName,
                     filePath: exportFile,
-                    content: (overwriteDrivingView ? "//WARNING! This file has been auto-generated. Do NOT edit it. Everything will be overwritten\n\n" : "") + drivingView.documentation + "\n",
+                    content: (overwriteDrivingView ? "//WARNING! This file has been auto-generated. Do NOT edit it. Everything will be overwritten\n\n" : "") + drivingView.documentation + "\n\n",
                     overwrite: overwriteDrivingView
                 });
         for (var i = 0; i < Sections.length; i++) {
@@ -602,13 +649,13 @@ if (useDrivingView()) {
                 });                    
             }
             outInfo  = "";                  
-            outputHdr(Sections[i].level-childDocs[childDocs.length - 1].level + 1, Sections[i].group.name, true, Sections[i].group.documentation);
+            outputHdr(Sections[i].level-childDocs[childDocs.length - 1].level + 1, Sections[i].group.name, true, Sections[i].group.documentation, Sections[i].settings);
             getViews(Sections[i].level-childDocs[childDocs.length - 1].level + 1, Sections[i].group, Sections[i].settings);
             childDocs[childDocs.length - 1].content += outInfo;
         }
        while (childDocs.length > 0) {
             var remainingChild = childDocs.pop();
-            saveToFile(remainingChild.filePath, remainingChild.content, finishedChild.overwrite);
+            saveToFile(remainingChild.filePath, remainingChild.content, remainingChild.overwrite);
 
             if (childDocs.length > 0) {              
                 childDocs[childDocs.length - 1].content += "\ninclude::" + remainingChild.fileName + "[leveloffset=+"+(remainingChild.level-childDocs[childDocs.length - 1].level)+"]";
