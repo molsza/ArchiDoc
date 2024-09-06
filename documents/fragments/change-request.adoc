@@ -1,0 +1,32 @@
+:toc: macro
+:doctype: article
+:toclevels: 3
+:sectnumlevels: 4
+:sectnums:
+:partnums:
+:chapter-signifier:
+:toc-title: Table of Contents
+:version-label: Version
+:figure-caption: Figure
+:table-caption: Table
+:appendix-caption: Appendix
+:pdf-version: 1.7
+:compress: yes
+
+[.text-center]
+[big]#Change Request#
+
+[cols="1,2"]
+|===
+|Revision | {revnumber}
+|Date | {revdate}
+ifdef::requestor[]
+|Requestor | {requestor}
+endif::[]
+|Author | {author}
+ifdef::acceptedby[]
+|Accepted | {acceptedby}
+endif::[]
+|===
+
+toc::[]

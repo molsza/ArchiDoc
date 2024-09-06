@@ -10,3 +10,5 @@
 :table-caption: Table
 :appendix-caption: Appendix
 :title-page:
+:pdf-version: 1.7
+:compress: yes

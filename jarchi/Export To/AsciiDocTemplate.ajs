@@ -1,10 +1,10 @@
 /*
 	Sourced: https://gist.github.com/rich-biker/9a3c86c5a576ce0d8639856f3ee81651
 	
-	Script: Documentation Generation
+	Script: Documentation Generation to AsciiDoc
 	Purpose: To generate output based on a driving view
     Author: Richard Heward - Tame Blue Lion Ltd
-    Modifed by: Michal Olsza to work export to .adoc
+    Modifed by: Michal Olsza  export to .adoc
 
 	This generates a asciidoc files with the embedded images and text based upon a driving view in Archi of groups that trigger each other and embedded views.
  */
@@ -46,6 +46,7 @@ var DefaultInclusionSettings = {
     "IncludeProperties": false, // if true, will include the "properties" field in a catalogue of elements from a view
     "CreateSectionPerView": false, // if true, will create an individual section for each view in a group,
     "IncludeElementsWithoutDocumentation": true, // if true, will include elements without documentation in the list of elements,
+    "GroupElementAsInView": false, // if true, will group element in the groups as in the view
     "FilterViewElements": [] // if set, will only include elements of the specified types in the list of elements
     //TODO: "ElementColumns": [{name: "Name", field: "name"}], // overrides the list of columns to include in the element catalogue (need to find a structure we can easily set in a property that we hopefully don't have to parse)
 };
@@ -179,6 +180,12 @@ function printViewElements(view, level, settings) {
 function printViewElementsAsList(view, level, settings) {
     var objList = [];
     $(view).find("element").each(function (viewObj) {
+
+        //getAllMethods(viewObj);
+        if(objList.some(i => i.getConcept().getId() == viewObj.getConcept().getId())) {
+            //remove duplicates
+            return;
+        }
         if(settings.FilterViewElements && settings.FilterViewElements.length > 0) {
             if(settings.FilterViewElements.indexOf(viewObj.type) > -1) {
                 objList.push(viewObj);
@@ -188,24 +195,43 @@ function printViewElementsAsList(view, level, settings) {
         }
     });
 
-    objList.sort(); // ensures the output groups by object type    
+    objList.sort(); // ensures the output groups by object type
+
+    printItem = function(item, level) {
+                var docs = replaceNL(item["documentation"]);
+                if(docs == "" && settings.IncludeElementsWithoutDocumentation == false) {
+                   return;
+                }
+                outInfo += "\n "+level +" ";
+                outInfo += replaceNL(item["name"]);
+                outInfo += " ("+replaceNL(item["type"]) +")";
+                if (docs != "") {
+                    outInfo += "\n+\n--\n";
+                    outInfo += docs;
+                    outInfo += "\n--\n+";
+                }
+    }
+
+//    if(settings.GroupElementAsInView) {
+//        groups = objList.filter(function(item, index) {
+//                        return item.type === "grouping";
+//                    });
+//
+//
+//        for (var i in groups) {
+//           printItem(groups[i], "*");
+//
+//           groups[i].children().forEach(function(element) {
+//               printItem(element, "**");
+//           });
+//        }
+//
+//
+//    }
 
     // For each row (element)
-    var i;
-    for (i in objList) {
-        var docs = replaceNL(objList[i]["documentation"]);
-        if(docs == "" && settings.IncludeElementsWithoutDocumentation == false) {
-            continue;
-        }
-        outInfo += "\n* ";
-        outInfo += replaceNL(objList[i]["name"]);        
-        outInfo += " ("+replaceNL(objList[i]["type"]) +")";
-        if (docs != "") {
-            outInfo += "\n+\n--\n";
-            outInfo += docs;
-            outInfo += "\n--\n+";
-        }
-
+    for (var i in objList) {
+        printItem(objList[i], "*");
     }
     outInfo += "\n//-\n";
 }
@@ -277,14 +303,9 @@ function getViews(Level, Levelobj, settings) {
                     }
                 });
 
-                console.log("View: " + myRef + " - Width: " + (maxWidth-minWidth))
-                var pageWidth = 900;
+                //console.log("View: " + myRef + " - Width: " + (maxWidth-minWidth))
+                var pageWidth = 1000;
                 var widthPercentage = ((maxWidth-minWidth) / pageWidth) * 100;
-
-                // Cap the percentage at 100%
-                if (widthPercentage > 100) {
-                    widthPercentage = 100;
-                }
 
                 var bytes = $.model.renderViewAsBase64(myRef, "PNG", {
                     scale: 1,
@@ -304,12 +325,16 @@ function getViews(Level, Levelobj, settings) {
                     if(caption) {
                         caption = "\n\n." + caption;
                     }
-                    if((maxWidth-minWidth) > 1.6 * pageWidth) {
+                    if(widthPercentage > 160) {
                         outInfo += "\n[.landscape]\n<<<"
                         outInfo += caption
                         outInfo += "\nimage::images/" + myView.name + ".png[pdfwidth=100%]\n"
                         outInfo += "\n[.portrait]\n<<<"
                     } else {
+                        // Cap the percentage at 100%
+                        if (widthPercentage > 120) {
+                            widthPercentage = 120;
+                        }
                         outInfo += caption
                         outInfo += "\nimage::images/" + myView.name + ".png[pdfwidth=" + Math.ceil(widthPercentage) + "%]\n"
                     }
@@ -523,6 +548,7 @@ function getGroupInclusionSettings(settingsElement, defaultSettings) {
     var filterViewElements = settingsElement.prop("FilterViewElements");
     var flatThisGroup = settingsElement.prop("FlatThisGroup");
     var checkIncludeElementsWithoutDocumentation = settingsElement.prop("IncludeElementsWithoutDocumentation");
+    var checkGroupElementAsInView = settingsElement.prop("GroupElementAsInView");
     var checkOverwrite = settingsElement.prop("Overwrite");
 
     if (checkIncludeDiagram !== null) {
@@ -531,6 +557,10 @@ function getGroupInclusionSettings(settingsElement, defaultSettings) {
 
     if (checkIncludeElementsWithoutDocumentation !== null) {
         settings["IncludeElementsWithoutDocumentation"] = checkIncludeElementsWithoutDocumentation === "true" ? true : false;
+    }
+
+    if (checkGroupElementAsInView !== null) {
+        settings["GroupElementAsInView"] = checkGroupElementAsInView === "true" ? true : false;
     }
 
     if (createSectionPerView !== null) {

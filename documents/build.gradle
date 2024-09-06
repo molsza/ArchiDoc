@@ -28,6 +28,7 @@ asciidoctor {
     sources {
         include 'architecture/**/*.adoc'
         include 'business/**/*.adoc'
+        include 'cr/**/*.adoc'
         exclude '*/fragments/**'
         exclude 'fragments/**'
         exclude '**/_*'
@@ -64,6 +65,7 @@ asciidoctorPdf {
     sources {
         include 'architecture/**/*.adoc'
         include 'business/**/*.adoc'
+        include 'cr/**/*.adoc'
         exclude '*/fragments/**'
         exclude 'fragments/**'
         exclude '**/_*'
@@ -83,10 +85,7 @@ asciidoctorPdf {
         requires 'rouge'
         attributes 'build-gradle': file('build.gradle'),
                 'plantumlconfig': file("${rootDir}/theme/plantuml.cfg"),
-                'endpoint-url': 'http://example.org',
                 'source-highlighter': 'rouge',
-                //'imagesdir': './images',
-                'toc': 'left',
                 'icons': 'font',
                 'idprefix': '',
                 'idseparator': '-',

@@ -13,8 +13,8 @@ title-page: true
 base:
   font-family: Noto Serif
   font_color: #333333
-  font_size: 10
-  line_height_length: 12
+  font_size: 9
+  line_height_length: 10
   line_height: $base_line_height_length / $base_font_size
 vertical_rhythm: $base_line_height_length
 link:
