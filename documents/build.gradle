@@ -62,14 +62,27 @@ asciidoctorPdf {
     theme 'main'
     baseDirFollowsSourceFile()
     sourceDir '.'
-    sources {
-        include 'architecture/**/*.adoc'
-        include 'business/**/*.adoc'
-        include 'cr/**/*.adoc'
-        exclude '*/fragments/**'
-        exclude 'fragments/**'
-        exclude '**/_*'
+
+    if (project.hasProperty('docDir')) {
+        // Include only a single directory if 'docDir' is passed
+        sources {
+            include project.docDir+'/*.adoc'
+            exclude '*/fragments/**'
+            exclude 'fragments/**'
+            exclude '**/_*'
+        }
+    } else {
+        // Include all files in the default or provided directory
+        sources {
+            include 'architecture/**/*.adoc'
+            include 'business/**/*.adoc'
+            include 'cr/**/*.adoc'
+            exclude '*/fragments/**'
+            exclude 'fragments/**'
+            exclude '**/_*'
+        }
     }
+
     pdfThemes {
         local 'main', {
             themeDir = file("../theme")

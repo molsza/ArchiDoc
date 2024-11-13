@@ -1,0 +1,153 @@
+/*
+ * Iterate through each selected folder and move items to a specified target folder
+ * Item are moved only if it has "move_to_folder" property with the path set. After the move property is removed.
+ */
+selection.filter("folder").each(function(folder) {
+  console.log('Starting moving items from ', folder.name);
+  layerFolder = $(model).children().filter('folder.Business').first();   
+  var commands = []
+  move(folder, commands)
+  commands.forEach(function(command) {
+    command(); 
+  });
+});
+
+// Function to move items from the specified folder to target folders
+function move(folder, commands) {
+
+  var subFolders = $(folder).children("folder");
+    
+  subFolders.each(function(f) {move(f, commands)});
+
+  $(folder).children().not(subFolders).each(function(v) {     
+    var targetFolder = v.prop("move_to_folder")
+      var moveTo = getFolder(getRootFolderName(v.type), targetFolder)
+      if(moveTo) {
+        commands.push(function() {
+          moveTo.add(v)                
+          v.removeProp("move_to_folder")
+        })
+      }
+  });  
+}
+
+
+function getFolder(layer, folderPath) {  
+  if (folderPath) {
+      // Split the folder path into individual folder names
+      var folderNames = folderPath.split('/'); // Assuming '/' is the delimiter
+      
+      // Start from the root layer folder
+      var currentFolder = $(model).children().filter('folder.' + layer).first();
+
+      // Iterate through each folder name in the path
+      for (var i = 0; i < folderNames.length; i++) {
+          var folderName = folderNames[i].trim(); // Trim whitespace
+          
+          // Check for existing subfolder
+          var subfolder = $(currentFolder).children().filter('folder.' + folderName).first();
+          
+          // Create the subfolder if it doesn't exist
+          if (!subfolder) {
+              subfolder = currentFolder.createFolder(folderName);
+          }
+          
+          // Move to the newly created or existing subfolder for the next iteration
+          currentFolder = subfolder;
+      }
+      
+      return currentFolder; // Return the last created or found folder
+  } 
+  return null;
+}
+/**
+ * Get the root folder name based on the ArchiMate concept type.
+ * @param {String} conceptType - The type of the ArchiMate concept (e.g., "business-service", "application-component").
+ * @returns {String} - The name of the root folder.
+ */
+function getRootFolderName(conceptType) {
+  var folderName = "Unknown";
+
+  // More complete map of ArchiMate concept types to root folder names
+  var folderMap = {
+      // Business Layer
+      "business-actor": "Business",
+      "business-role": "Business",
+      "business-collaboration": "Business",
+      "business-interface": "Business",
+      "business-process": "Business",
+      "business-function": "Business",
+      "business-interaction": "Business",
+      "business-event": "Business",
+      "business-service": "Business",
+      "business-object": "Business",
+      "contract": "Business",
+      "representation": "Business",
+      "product": "Business",
+
+      // Application Layer
+      "application-component": "Application",
+      "application-collaboration": "Application",
+      "application-interface": "Application",
+      "application-function": "Application",
+      "application-interaction": "Application",
+      "application-process": "Application",
+      "application-service": "Application",
+      "data-object": "Application",
+
+      // Technology Layer
+      "node": "Technology & Physical",
+      "device": "Technology & Physical",
+      "system-software": "Technology & Physical",
+      "technology-collaboration": "Technology & Physical",
+      "technology-interface": "Technology & Physical",
+      "technology-function": "Technology & Physical",
+      "technology-process": "Technology & Physical",
+      "technology-service": "Technology & Physical",
+      "artifact": "Technology & Physical",
+      "communication-network": "Technology & Physical",
+      "path": "Technology & Physical",
+
+      // Physical Elements
+      "equipment": "Technology & Physical",
+      "facility": "Technology & Physical",
+      "distribution-network": "Technology & Physical",
+      "material": "Technology & Physical",
+
+      // Motivation Layer
+      "stakeholder": "Motivation",
+      "driver": "Motivation",
+      "assessment": "Motivation",
+      "goal": "Motivation",
+      "outcome": "Motivation",
+      "principle": "Motivation",
+      "requirement": "Motivation",
+      "constraint": "Motivation",
+      "meaning": "Motivation",
+      "value": "Motivation",
+
+      // Strategy Layer
+      "resource": "Strategy",
+      "capability": "Strategy",
+      "course-of-action": "Strategy",
+
+      // Implementation & Migration Layer
+      "work-package": "Implementation & Migration",
+      "deliverable": "Implementation & Migration",
+      "plateau": "Implementation & Migration",
+      "gap": "Implementation & Migration",
+
+      // Other concepts
+      "outcome": "Other",
+      "gap": "Other",
+      "location": "Other"
+  };
+
+  // Retrieve the correct folder name based on the concept type
+  if (folderMap[conceptType]) {
+      folderName = folderMap[conceptType];
+  }
+
+  return folderName;
+}
+

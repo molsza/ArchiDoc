@@ -1,6 +1,6 @@
 extends: default
 page:
-  margin: [1.2in, 1in, 0.8in, 1in]
+  margin: [1.2in, 0.9in, 0.8in, 0.9in]
   layout: portrait
   size: A4
 title_page:
@@ -19,8 +19,9 @@ base:
 vertical_rhythm: $base_line_height_length
 link:
   font_color: #DB3830
-outline_list:
+list:
   indent: $base_font_size * 1.5
+  item_spacing: 1
 code:
   font_size: $base_font_size * 0.75
 header:
