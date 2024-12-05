@@ -1,0 +1,41 @@
+//WARNING! This file has been auto-generated. Do NOT edit it. Everything will be overwritten.
+
+
+[#target_state, reftext = "Target State"]
+= Target State
+
+
+.Application architecture_new_1
+image::images/Application architecture_new_1.svg[pdfwidth=102%]
+
+ * Distributors management (application-component)
++
+--
+Distributors management
+--
++
+ * Financial application (application-component)
++
+--
+Financial application
+--
++
+ * Invoicing application (application-component)
++
+--
+Invoicing application
+--
++
+ * Shipping application (application-component)
++
+--
+Shipping application
+--
++
+//-
+
+
+.Business functions_new
+image::images/Business functions_new.svg[pdfwidth=97%]
+
+//-

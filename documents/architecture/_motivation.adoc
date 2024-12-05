@@ -1,0 +1,29 @@
+//WARNING! This file has been auto-generated. Do NOT edit it. Everything will be overwritten.
+
+
+[#motivation, reftext = "Motivation"]
+= Motivation
+
+
+.Business performance - solutions
+image::images/Business performance - solutions.svg[pdfwidth=120%]
+
+ * Management (stakeholder)
++
+--
+This is documentation od Managment
+--
++
+//-
+
+
+.Customer satisfaction focus - solutions
+image::images/Customer satisfaction focus - solutions.svg[pdfwidth=87%]
+
+ * Management (stakeholder)
++
+--
+This is documentation od Managment
+--
++
+//-

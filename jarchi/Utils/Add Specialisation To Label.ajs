@@ -1,0 +1,9 @@
+﻿// Iterate through selected views and change label to add specialization to the name
+$(selection).filter("archimate-diagram-model").each(function(v) {
+    $(v).find("element").each(function(e) {
+        var spec = e.concept.getSpecialization();
+        if(spec) {
+            e.setLabelExpression("${if:${specialization}:<<${specialization}>>\n}${if:${property:schema}:(${property:schema})\n}${name}")    
+        }           
+    });
+});

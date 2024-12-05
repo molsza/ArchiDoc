@@ -1,0 +1,31 @@
+//WARNING! This file has been auto-generated. Do NOT edit it. Everything will be overwritten.
+
+
+[#crm, reftext = "CRM"]
+= CRM
+
+
+.03. CRM functional model
+image::images/03. CRM functional model.svg[pdfwidth=120%]
+
+ * CRM (application-function)
++
+--
+
+
+--
++
+//-
+
+
+.04. Enterprise business function usage of CRM application functions
+image::images/04. Enterprise business function usage of CRM application functions.svg[pdfwidth=88%]
+
+ * CRM (application-function)
++
+--
+
+
+--
++
+//-

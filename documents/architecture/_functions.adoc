@@ -1,0 +1,9 @@
+//WARNING! This file has been auto-generated. Do NOT edit it. Everything will be overwritten.
+
+
+[#functions, reftext = "Functions"]
+= Functions
+
+include::_enterprise_level.adoc[leveloffset=+1]
+include::_crm.adoc[leveloffset=+1]
+include::_summary.adoc[leveloffset=+1]

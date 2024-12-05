@@ -1,0 +1,68 @@
+//WARNING! This file has been auto-generated. Do NOT edit it. Everything will be overwritten.
+
+
+[#context, reftext = "Context"]
+= Context
+
+
+.Landscape view
+image::images/Landscape view.svg[pdfwidth=88%]
+
+ * Customer data management application (application-component)
++
+--
+Customer data management application
+--
++
+ * DC order management (application-component)
++
+--
+DC order management
+--
++
+ * Distributers invoicing (application-component)
++
+--
+Distributers invoicing
+--
++
+ * Distributors management (application-component)
++
+--
+Distributors management
+--
++
+ * ERP (application-component)
++
+--
+ERP
+--
++
+ * Financial application (application-component)
++
+--
+Financial application
+--
++
+ * Invoicing application (application-component)
++
+--
+Invoicing application
+--
++
+ * Order management application (application-component)
++
+--
+Order management application
+--
++
+ * Shipping application (application-component)
++
+--
+Shipping application
+--
++
+//-
+
+include::_current_state.adoc[leveloffset=+1]
+include::_target_state.adoc[leveloffset=+1]

@@ -1,0 +1,33 @@
+//WARNING! This file has been auto-generated. Do NOT edit it. Everything will be overwritten.
+
+
+[#enterprise_level, reftext = "Enterprise Level"]
+= Enterprise Level
+
+[.landscape]
+<<<
+
+.01. Functional enterprise-control model
+image::images/01. Functional enterprise-control model.svg[pdfwidth=100%]
+
+[.portrait]
+<<<
+//-
+
+
+.01-1. Summary functional enterprise-control model
+image::images/01-1. Summary functional enterprise-control model.svg[pdfwidth=97%]
+
+//-
+
+
+.01-2. Enterprise functions
+image::images/01-2. Enterprise functions.svg[pdfwidth=119%]
+
+//-
+
+
+.01-3. Control functions
+image::images/01-3. Control functions.svg[pdfwidth=120%]
+
+//-

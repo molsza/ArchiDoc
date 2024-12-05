@@ -1,0 +1,21 @@
+//WARNING! This file has been auto-generated. Do NOT edit it. Everything will be overwritten
+
+//----------------------------------------
+:doctitle: ArchiMetal: Architecture
+//----------------------------------------
+:author: ArchiMate team
+:acceptedby: Cheif Architect
+//----------------------------------------
+:revnumber: 0.5
+:revdate: 21.11.2024
+//----------------------------------------
+
+include::../fragments/config.adoc[]
+
+This is the Architecture document created from the example file of archimate, exported to AsciiDoc format. 
+
+
+include::_intro.adoc[leveloffset=+1]
+include::_motivation.adoc[leveloffset=+1]
+include::_context.adoc[leveloffset=+1]
+include::_functions.adoc[leveloffset=+1]

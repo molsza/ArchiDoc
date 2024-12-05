@@ -1,4 +1,5 @@
 :toc: left
+:doctype: article
 :toclevels: 3
 :sectnumlevels: 4
 :sectnums:
@@ -12,3 +13,16 @@
 :title-page:
 :pdf-version: 1.7
 :compress: yes
+
+[cols="1,2"]
+|===
+|Revision | {revnumber}
+|Date | {revdate}
+ifdef::requestor[]
+|Requestor | {requestor}
+endif::[]
+|Author | {author}
+ifdef::acceptedby[]
+|Accepted | {acceptedby}
+endif::[]
+|===

@@ -1,0 +1,21 @@
+//This file is set to be not overwritten on regeneration.
+[#summary, reftext = "Summary"]
+= Summary
+
+You can write it in AsciDoc format
+
+* add some list
+* and another point
+
+What about plantuml example?
+
+[plantuml, format="svg", options="interactive"]
+----
+Alice -> Bob: Authentication Request
+Bob --> Alice: Authentication Response
+
+Alice -> Bob: Another authentication Request
+Alice <-- Bob: Another authentication Response
+----
+
+

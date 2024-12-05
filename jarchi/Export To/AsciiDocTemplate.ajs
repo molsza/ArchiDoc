@@ -253,6 +253,7 @@ var theToc = "";
 var path = "";
 var fileName = "";
 var embed = false; // false will store the images outside of the generated markdown; true is embedded inside
+var exportAsSVG = true; // false will export as PNG
 var hardNewpage = false; // if true, the text NEWPAGE will be put in the output for post processing in MS Word to find and replace for a proper new page.
 var listofNewpageheaders = [1, 2, 3]; // these will generate the hardNewpage (if true) for these header levels
 var drivingView = null; // will be set to the selected view that has all the groups and view references on.
@@ -441,12 +442,12 @@ function printViewElementsAsTable(view, level, settings, columns) {
                     outInfo += " ("+replaceNL(item["type"]) +")";
                 outInfo += "*";
                 if (docs != "") {
-                    outInfo += "\n";
+                    outInfo += "\n\n";
                     outInfo += docs;
                     outInfo += "\n";
                 }
     }
-    outInfo += '[cols="'+columns+'", frame=none"]\n';
+    outInfo += '[cols="'+columns+'", frame=ends]\n';
     outInfo += "|===\n";
 
     // For each row (element)
@@ -562,6 +563,138 @@ function printViewElementsAsUserScenarioTable(view, level, settings) {
 
 }
 
+function buildRequirementTree(filteredList) {
+    // Map to store each requirement and its children
+    var requirementMap = new Map();
+
+    // Populate the map with the children relationships
+    for (var i in filteredList) {
+        var requirement = filteredList[i];
+        var children = $(requirement).outRels("aggregation-relationship")
+            .filter(function(rel) {
+                return rel.target.type == "requirement";
+            }).map(function(rel) {
+                return rel.target;
+            }).concat(
+                $(requirement).outRels("compositions-relationship")
+                    .filter(function(rel) {
+                        return rel.target.type == "requirement";
+                    }).map(function(rel) {
+                        return rel.target;
+                    })
+            );
+
+        requirementMap.set(requirement, children);
+    }
+
+    // Function to recursively build the tree
+    function buildTree(node) {
+        node.children = requirementMap.get(node.requirement).map(function(i) {
+            return {
+                requirement: i,
+                children: []
+            }
+        } ) || [];
+        requirementMap.remove(node.requirement);
+        return node;
+    }
+
+    // Find root requirements (those that are not children of any other requirement)
+    var rootRequirements = filteredList.filter(function(req) {
+        return !Array.from(requirementMap.values()).flat().includes(req);
+    });
+
+    // Build the tree starting from the root requirements
+    var tree = rootRequirements.map(function(i) {
+                                           return {
+                                               requirement: i,
+                                               children: []
+                                           }});
+    return tree;
+}
+
+function printViewElementsAsRequirementTable(view, level, settings) {
+    var objList = [];
+    console.log("Requirements table from view " + view.name);
+    $(view).find("element").each(function (viewObj) {
+
+        if(objList.some(i => i.getConcept().getId() == viewObj.getConcept().getId())) {
+            //remove duplicates
+            return;
+        }
+        if(settings.FilterViewElements && settings.FilterViewElements.length > 0) {
+            if (settings.FilterViewElements.indexOf(viewObj.type) > -1) {
+                objList.push(viewObj);
+            }
+        } else {
+            objList.push(viewObj);
+        }
+    });
+
+    var filteredList = objList.filter(function(item) {
+        console.log("Requirement: " + item.prop("req-id") + " " + item["name"]);
+        return item.prop('req-id') != null;
+    }).sort(function(a, b) {
+          var useCaseIdA = a.prop('req-id');
+          var useCaseIdB = b.prop('req-id');
+          return natSort(useCaseIdA, useCaseIdB);
+      });
+
+
+    printItem = function(item) {
+                var docs = replaceNL(item["documentation"]);
+                if(docs == "" && settings.IncludeElementsWithoutDocumentation == false) {
+                   return;
+                }
+                docs = docs.replaceAll("@startmindmap", '[plantuml, format="svg", opts="inline", align="left"]\n----\n@startmindmap')
+                .replaceAll("@startuml", '[plantuml, format="svg", opts="inline", align="left"]\n----\n@startuml')
+                .replaceAll("@endmindmap", "@endmindmap\n----")
+                .replaceAll("@enduml", "@enduml\n----");
+
+                if (docs != "") {
+                    outInfo += "\n";
+                    outInfo += docs;
+                    outInfo += "\n";
+                }
+    }
+
+    printRow = function(name, items, fallbackValue) {
+        if(items != null && items.length > 0) {
+            outInfo += "\n|*"+name+"*\n|";
+            if(items.length == 1) {
+                outInfo += items[0];
+            } else if(items.length) {
+                  outInfo += "* " + items.join("\n* ");
+            }
+            return true;
+        }
+        if(fallbackValue != null) {
+            outInfo += "\n|*"+name+"*\n|";
+            outInfo += fallbackValue;
+            return true;
+        }
+        return false;
+    }
+
+    outInfo += '[cols="1,2,4,1,2", frame=none]\n';
+    outInfo += "|===\n";
+    outInfo += "|Id |Nazwa |Opis |Priorytet |Zależności\n";
+
+    tree = buildRequirementTree(filteredList);
+    for (var i in tree) {
+        var title = tree[i].requirement.prop("req-id") +" "+tree[i].requirement["name"];
+        outInfo += "\n|[["+generateLink(tree[i].requirement.prop("req-id"))+","+title+"]]"+tree[i].requirement.prop("req-id") +" | "+tree[i].requirement["name"]+" | "+replaceNL(tree[i].requirement["documentation"])+" | "+replaceNL(tree[i].requirement.prop("priority"))+" | ";
+        tree[i].children.forEach(function(child) {
+            var title = child.requirement.prop("req-id") +" "+child.requirement["name"];
+            outInfo += "\n^|[["+generateLink(child.requirement.prop("req-id"))+","+title+"]]"+child.requirement.prop("req-id") +" | "+child.requirement["name"]+" | "+replaceNL(child.requirement["documentation"])+" | "+replaceNL(child.requirement.prop("priority"))+" | ";
+            child.children.forEach(function(child) {
+                        var title = child.requirement.prop("req-id") +" "+child.requirement["name"];
+                        outInfo += "\n>|[["+generateLink(child.requirement.prop("req-id"))+","+title+"]]"+child.requirement.prop("req-id") +" | "+child.requirement["name"]+" | "+replaceNL(child.requirement["documentation"])+" | "+replaceNL(child.requirement.prop("priority"))+" | ";
+                    });
+        });
+    }
+    outInfo += "\n|===\n";
+}
 
 
 function printViewElementsAsUseCaseTable(view, level, settings) {
@@ -627,9 +760,35 @@ function printViewElementsAsUseCaseTable(view, level, settings) {
         return false;
     }
 
+    if(view.prop("_doc_render_plantuml") == "true") {
+        var umldiagram = '\n[plantuml, format="svg", options="interactive"]'+"\n----\n!include <archimate/Archimate>\n";
+        umldiagram += "left to right direction\n";
+        var actorList = [];
+        for (var i in filteredList) {
+            var linkValue = generateLink(filteredList[i].prop("use-case-id"))
+
+            //umldiagram += 'usecase '+ linkValue +' #application as "[[xref:'+linkValue+" "+filteredList[i].prop("use-case-id")+"]]\n"+filteredList[i]["name"]+'"\n';
+            umldiagram += 'usecase '+ linkValue +' #application as "'+filteredList[i].prop("use-case-id")+"\n"+filteredList[i]["name"]+'"\n';
+
+            $(filteredList[i]).outRels("serving-relationship")
+                    .filter(function(rel) {
+                      return rel.target.type == "business-actor" || rel.target.type == "business-role";
+                    }).forEach(function(rel) {
+                        if(!actorList.includes(rel.target)) {
+                            actorList.push(rel.target);
+                            umldiagram += 'Business_Actor('+generateLink(rel.target.name)+', '+rel.target.name+')\n';
+                            //umldiagram += 'actor "'+rel.target.name+'" as '+generateLink(rel.target.name)+'\n';
+                        }
+                        umldiagram += generateLink(rel.target.name) + ' --> ' + linkValue + '\n';
+                    });
+        }
+        umldiagram  += '----\n';
+        outInfo += umldiagram;
+    }
 
     // For each row (element)
     for (var i in filteredList) {
+
         var title = filteredList[i].prop("use-case-id") +" "+filteredList[i]["name"];
         outInfo += "\n[.lead]\n[["+generateLink(filteredList[i].prop("use-case-id"))+","+title+"]]" + title;
         outInfo += '\n[cols="1,5a", frame=none]\n';
@@ -678,6 +837,7 @@ function printViewElementsAsUseCaseTable(view, level, settings) {
         }), filteredList[i].prop("requirements"));
 
         outInfo += "\n|===\n";
+
         printItem(filteredList[i]);
     }
 
@@ -690,11 +850,11 @@ function printViewElementsAsList(view, level, settings) {
     $(view).find("element").each(function (viewObj) {
 
         //getAllMethods(viewObj);
-        if(objList.some(i => i.getConcept().getId() == viewObj.getConcept().getId())) {
+        if (objList.some(i => i.getConcept().getId() == viewObj.getConcept().getId())) {
             //remove duplicates
             return;
         }
-        if(settings.FilterViewElements && settings.FilterViewElements.length > 0) {
+        if (settings.FilterViewElements && settings.FilterViewElements.length > 0) {
             if (settings.FilterViewElements.indexOf(viewObj.type) > -1) {
                 objList.push(viewObj);
             }
@@ -823,16 +983,23 @@ function getViews(Level, Levelobj, settings) {
                 var pageWidth = 1000;
                 var widthPercentage = myRef.prop("pdfwidth") ? myRef.prop("pdfwidth") : ((maxWidth-minWidth) / pageWidth) * 100;
 
-                var bytes = $.model.renderViewAsBase64(myRef, "PNG", {
-                    scale: 1,
-                    margin: 10
-                });
-
-                if (embed) {
-                    outInfo += "\n![" + myView.name + "](data:image/png;base64," + bytes + ")\n";
+                imageName = "images/"+ myView.name;
+                if(exportAsSVG) {
+                    var svgString = $.model.renderViewAsSVGString(myRef, true);
+                    imageName = imageName + ".svg";
+                    $.fs.writeFile(path + imageName, svgString);
                 } else {
-                    thisPath = path + "images/" + myView.name + ".png";
-                    $.fs.writeFile(thisPath, bytes, "BASE64");
+                    var bytes = $.model.renderViewAsBase64(myRef, "PNG", {
+                        scale: 1,
+                        margin: 10
+                    });
+                    imageName = imageName + ".png";
+                    $.fs.writeFile(path + imageName, bytes, "BASE64");
+                }
+
+//                if (embed) {
+//                    outInfo += "\n![" + myView.name + "](data:image/png;base64," + bytes + ")\n";
+//                } else {
 
                     //imageURL = thisPath.replaceAll(" ", "%20");
                     //outInfo += "\n![Diagram: " + myView.name + "][" + myView.name + "]\n";
@@ -844,7 +1011,7 @@ function getViews(Level, Levelobj, settings) {
                     if(widthPercentage > 160) {
                         outInfo += "\n[.landscape]\n<<<"
                         outInfo += caption
-                        outInfo += "\nimage::images/" + myView.name + ".png[pdfwidth=100%]\n"
+                        outInfo += "\nimage::" + imageName + "[pdfwidth=100%]\n"
                         outInfo += "\n[.portrait]\n<<<"
                     } else {
                         // Cap the percentage at 100%
@@ -852,9 +1019,9 @@ function getViews(Level, Levelobj, settings) {
                             widthPercentage = 120;
                         }
                         outInfo += caption
-                        outInfo += "\nimage::images/" + myView.name + ".png[pdfwidth=" + Math.ceil(widthPercentage) + "%]\n"
+                        outInfo += "\nimage::" + imageName + "[pdfwidth=" + Math.ceil(widthPercentage) + "%]\n"
                     }
-                }
+               // }
             }
             if (settings.IncludeDocumentation === true) {
                 myView.documentation != "" ? outInfo += "\n" + myView.documentation + "\n" : true;
@@ -863,7 +1030,9 @@ function getViews(Level, Levelobj, settings) {
             // Now document the view details (if desired)
             if (myView.prop("IncludeViewElements") == 'true' || myView.prop("IncludeViewElements") != 'false' && settings.IncludeViewElements === true) {
 
-                if (myView.prop("_doc_render") == 'use-scenario-table') {
+                if(myView.prop("_doc_render") == 'req-table') {
+                    printViewElementsAsRequirementTable(myRef, viewList.length > 1 ? Level + 1 : Level, settings)
+                } else if (myView.prop("_doc_render") == 'use-scenario-table') {
                    printViewElementsAsUserScenarioTable(myRef, viewList.length > 1 ? Level + 1 : Level, settings)
                 } else if (myView.prop("_doc_render") == 'use-case-table') {
                    printViewElementsAsUseCaseTable(myRef, viewList.length > 1 ? Level + 1 : Level, settings)
