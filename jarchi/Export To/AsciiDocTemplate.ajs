@@ -262,7 +262,8 @@ var drivingView = null; // will be set to the selected view that has all the gro
 // A property of the same name of the settings below, with a value of true/false, on the driving view or a group, will override this value for anything nested under that section of the document, unless overridden again.
 var DefaultInclusionSettings = {
     "Overwrite": true, //if false then the file will not be overwritten if exists
-    "CreateChildAdoc": true, // if true will generate a separate adoc file for this group
+    "CreateChildAdoc": true, // if true will generate a separate adoc file for this group,
+    "AddParentSectionNumberToChild": false, // if true will add the parent section number to the child file names
     "FlatThisGroup": false, // if true will not create a section for this group, but will still process the views
     "IncludeDiagram": true, // if true, will include the view's diagram
     "IncludeDocumentation": true, // if true, will include the view's documentation text (which itself can have markdown, by the way)
@@ -271,7 +272,8 @@ var DefaultInclusionSettings = {
     "CreateSectionPerView": false, // if true, will create an individual section for each view in a group,
     "IncludeElementsWithoutDocumentation": false, // if true, will include elements without documentation in the list of elements,
     "GroupElementAsInView": false, // if true, will group element in the groups as in the view
-    "FilterViewElements": [] // if set, will only include elements of the specified types in the list of elements
+    "FilterViewElements": [], // if set, will only include elements of the specified types in the list of elements,
+    "Appendix": false, // if true, will include the group as an appendix
     //TODO: "ElementColumns": [{name: "Name", field: "name"}], // overrides the list of columns to include in the element catalogue (need to find a structure we can easily set in a property that we hopefully don't have to parse)
 };
 
@@ -501,22 +503,9 @@ function printViewElementsAsUserScenarioTable(view, level, settings) {
                 }
     }
 
-    printRow = function(name, items, fallbackValue) {
-        if(items != null && items.length > 0) {
-            outInfo += "\n|*"+name+"*\n|";
-            if(items.length == 1) {
-                outInfo += items[0];
-            } else if(items.length) {
-                  outInfo += "* " + items.join("\n* ");
-            }
-            return true;
-        }
-        if(fallbackValue != null) {
-            outInfo += "\n|*"+name+"*\n|";
-            outInfo += fallbackValue;
-            return true;
-        }
-        return false;
+    printRow = function(name, items, fallbackValue = "") {
+            outInfo += "\n|*"+name+"*\n|"
+            outInfo += printItemOrList(items, fallbackValue);
     }
 
     // For each row (element)
@@ -613,6 +602,22 @@ function buildRequirementTree(filteredList) {
     return tree;
 }
 
+function printItemOrList(items, fallbackValue = "") {
+    var returnValue = "";
+    if(items != null && items.length > 0) {
+        if(items.length == 1) {
+            returnValue += items[0];
+        } else if(items.length) {
+              returnValue += "* " + items.join("\n* ");
+        }
+        return returnValue;
+    }
+    if (fallbackValue != null) {
+        return fallbackValue;
+    }
+    return "";
+}
+
 function printViewElementsAsRequirementTable(view, level, settings) {
     var objList = [];
     console.log("Requirements table from view " + view.name);
@@ -632,14 +637,13 @@ function printViewElementsAsRequirementTable(view, level, settings) {
     });
 
     var filteredList = objList.filter(function(item) {
-        console.log("Requirement: " + item.prop("req-id") + " " + item["name"]);
+        //console.log("Requirement: " + item.prop("req-id") + " " + item["name"]);
         return item.prop('req-id') != null;
     }).sort(function(a, b) {
           var useCaseIdA = a.prop('req-id');
           var useCaseIdB = b.prop('req-id');
           return natSort(useCaseIdA, useCaseIdB);
       });
-
 
     printItem = function(item) {
                 var docs = replaceNL(item["documentation"]);
@@ -658,44 +662,47 @@ function printViewElementsAsRequirementTable(view, level, settings) {
                 }
     }
 
-    printRow = function(name, items, fallbackValue) {
-        if(items != null && items.length > 0) {
-            outInfo += "\n|*"+name+"*\n|";
-            if(items.length == 1) {
-                outInfo += items[0];
-            } else if(items.length) {
-                  outInfo += "* " + items.join("\n* ");
-            }
-            return true;
-        }
-        if(fallbackValue != null) {
-            outInfo += "\n|*"+name+"*\n|";
-            outInfo += fallbackValue;
-            return true;
-        }
-        return false;
+    findRelatedFunctionsOrServices = function(requirement) {
+        var relatedFunctions = $(requirement).inRels("realization-relationship")
+            .filter(function(rel) {
+                return rel.source.type == "application-function";
+            }).map(function(rel) {
+                return rel.source.name;
+            });
+        var relatedServices = $(requirement).inRels("realization-relationship")
+            .filter(function(rel) {
+                return rel.source.type == "application-service";
+            }).map(function(rel) {
+                return rel.source.name;
+            });
+        return printItemOrList(relatedFunctions.concat(relatedServices))
     }
 
-    outInfo += '[cols="1,2,4,1,2", frame=none]\n';
+
+    printRow = function(name, items, fallbackValue = "") {
+            outInfo += "\n|*"+name+"*\n|"
+            outInfo += printItemOrList(items, fallbackValue);
+    }
+
+    outInfo += '\n[cols="1,2,2a,4,1,2", frame=none]\n';
     outInfo += "|===\n";
-    outInfo += "|Id |Nazwa |Opis |Priorytet |Zależności\n";
+    outInfo += "|Id |Nazwa | Dotyczy | Opis |Priorytet |Zależności\n";
 
     tree = buildRequirementTree(filteredList);
     for (var i in tree) {
         var title = tree[i].requirement.prop("req-id") +" "+tree[i].requirement["name"];
-        outInfo += "\n|[["+generateLink(tree[i].requirement.prop("req-id"))+","+title+"]]"+tree[i].requirement.prop("req-id") +" | "+tree[i].requirement["name"]+" | "+replaceNL(tree[i].requirement["documentation"])+" | "+replaceNL(tree[i].requirement.prop("priority"))+" | ";
+        outInfo += "\n|[["+generateLink(tree[i].requirement.prop("req-id"))+","+title+"]]"+tree[i].requirement.prop("req-id") +"\n| "+tree[i].requirement["name"]+"\n|"+findRelatedFunctionsOrServices(tree[i].requirement)+"\n| "+replaceNL(tree[i].requirement["documentation"])+"\n| "+replaceNL(tree[i].requirement.prop("priority"))+"\n| ";
         tree[i].children.forEach(function(child) {
             var title = child.requirement.prop("req-id") +" "+child.requirement["name"];
-            outInfo += "\n^|[["+generateLink(child.requirement.prop("req-id"))+","+title+"]]"+child.requirement.prop("req-id") +" | "+child.requirement["name"]+" | "+replaceNL(child.requirement["documentation"])+" | "+replaceNL(child.requirement.prop("priority"))+" | ";
+            outInfo += "\n^|[["+generateLink(child.requirement.prop("req-id"))+","+title+"]]"+child.requirement.prop("req-id") +" | "+child.requirement["name"]+" |"+findRelatedFunctionsOrServices(child.requirement)+" | "+replaceNL(child.requirement["documentation"])+" | "+replaceNL(child.requirement.prop("priority"))+" | ";
             child.children.forEach(function(child) {
                         var title = child.requirement.prop("req-id") +" "+child.requirement["name"];
-                        outInfo += "\n>|[["+generateLink(child.requirement.prop("req-id"))+","+title+"]]"+child.requirement.prop("req-id") +" | "+child.requirement["name"]+" | "+replaceNL(child.requirement["documentation"])+" | "+replaceNL(child.requirement.prop("priority"))+" | ";
+                        outInfo += "\n>|[["+generateLink(child.requirement.prop("req-id"))+","+title+"]]"+child.requirement.prop("req-id") +" | "+child.requirement["name"]+" |"+findRelatedFunctionsOrServices(child.requirement)+" | "+replaceNL(child.requirement["documentation"])+" | "+replaceNL(child.requirement.prop("priority"))+" | ";
                     });
         });
     }
     outInfo += "\n|===\n";
 }
-
 
 function printViewElementsAsUseCaseTable(view, level, settings) {
     var objList = [];
@@ -742,22 +749,9 @@ function printViewElementsAsUseCaseTable(view, level, settings) {
                 }
     }
 
-    printRow = function(name, items, fallbackValue) {
-        if(items != null && items.length > 0) {
-            outInfo += "\n|*"+name+"*\n|";
-            if(items.length == 1) {
-                outInfo += items[0];
-            } else if(items.length) {
-                  outInfo += "* " + items.join("\n* ");
-            }
-            return true;
-        }
-        if(fallbackValue != null) {
-            outInfo += "\n|*"+name+"*\n|";
-            outInfo += fallbackValue;
-            return true;
-        }
-        return false;
+    printRow = function(name, items, fallbackValue = "") {
+            outInfo += "\n|*"+name+"*\n|"
+            outInfo += printItemOrList(items, fallbackValue);
     }
 
     if(view.prop("_doc_render_plantuml") == "true") {
@@ -983,7 +977,7 @@ function getViews(Level, Levelobj, settings) {
                 var pageWidth = 1000;
                 var widthPercentage = myRef.prop("pdfwidth") ? myRef.prop("pdfwidth") : ((maxWidth-minWidth) / pageWidth) * 100;
 
-                imageName = "images/"+ myView.name;
+                imageName = "images/" + generateLink(myView.name);
                 if(exportAsSVG) {
                     var svgString = $.model.renderViewAsSVGString(myRef, true);
                     imageName = imageName + ".svg";
@@ -1012,7 +1006,7 @@ function getViews(Level, Levelobj, settings) {
                         outInfo += "\n[.landscape]\n<<<"
                         outInfo += caption
                         outInfo += "\nimage::" + imageName + "[pdfwidth=100%]\n"
-                        outInfo += "\n[.portrait]\n<<<"
+                        outInfo += "\n[.portrait]\n<<<\n"
                     } else {
                         // Cap the percentage at 100%
                         if (widthPercentage > 120) {
@@ -1073,8 +1067,7 @@ function outputHdr(Level, Name, AddLink, Doc, settings = {}) {
             console.log(addSpace(Level - 1), Name);
         }
 
-        var outHdr = indent + " " + Name;
-
+        var outHdr = "\n" + indent + " " + Name+ "\n";
 
         // put a fudge post processing to insert 'NEWPAGE' in for header levels listed in listofNewpageheaders
         if (hardNewpage) {
@@ -1083,19 +1076,31 @@ function outputHdr(Level, Name, AddLink, Doc, settings = {}) {
             }
         }
 
-
+        if( settings.Appendix ) {
+            outInfo += "\n[appendix]";
+        }
         // Add a link to table of contents (TOC), if requested
         if (AddLink) {
             var thisLink = generateLink(Name);
             outInfo += "\n" + "[#" + thisLink + ", reftext = \""+ Name +"\"]";
         }
-        outInfo += "\n" + outHdr + "\n";
+        outInfo += outHdr;
 
     }
     if (Doc) {
         outInfo += "\n" + Doc+ "\n";
     }
 
+}
+
+// Generate a link from a provided string
+// Adds _ until the file name is unique (doesn't exist in the existingFiles array)
+function generateUniqueFileName(fileName, existingFiles) {
+    let uniqueFileName = fileName;
+    while (existingFiles.includes(uniqueFileName)) {
+        uniqueFileName = "_" + uniqueFileName;
+    }
+    return uniqueFileName;
 }
 
 // Finds the group's sub-group, if any
@@ -1238,11 +1243,13 @@ function getGroupInclusionSettings(settingsElement, defaultSettings) {
     var checkIncludeElements = settingsElement.prop("IncludeViewElements");
     var checkIncludeProperties = settingsElement.prop("IncludeProperties");
     var checkCreateChildAdoc = settingsElement.prop("CreateChildAdoc");
+    var checkAddParentSectionNumberToChild = settingsElement.prop("AddParentSectionNumberToChild");
     var createSectionPerView = settingsElement.prop("CreateSectionPerView");
     var filterViewElements = settingsElement.prop("FilterViewElements");
     var flatThisGroup = settingsElement.prop("FlatThisGroup");
     var checkIncludeElementsWithoutDocumentation = settingsElement.prop("IncludeElementsWithoutDocumentation");
     var checkGroupElementAsInView = settingsElement.prop("GroupElementAsInView");
+    var checkAppendix = settingsElement.prop("Appendix");
     var checkOverwrite = settingsElement.prop("Overwrite");
 
     if (checkIncludeDiagram !== null) {
@@ -1253,9 +1260,13 @@ function getGroupInclusionSettings(settingsElement, defaultSettings) {
         settings["IncludeElementsWithoutDocumentation"] = checkIncludeElementsWithoutDocumentation === "true" ? true : false;
     }
 
-    if (checkGroupElementAsInView !== null) {
-        settings["GroupElementAsInView"] = checkGroupElementAsInView === "true" ? true : false;
+    if (checkAppendix !== null) {
+        settings["Appendix"] = checkAppendix === "true" ? true : false;
     }
+
+        if (checkGroupElementAsInView !== null) {
+            settings["GroupElementAsInView"] = checkGroupElementAsInView === "true" ? true : false;
+        }
 
     if (createSectionPerView !== null) {
         settings["CreateSectionPerView"] = createSectionPerView === "true" ? true : false;
@@ -1271,11 +1282,16 @@ function getGroupInclusionSettings(settingsElement, defaultSettings) {
         settings["FlatThisGroup"] = false;
     }
 
+    if(settings["FlatThisGroup"] === true) {
+        settings["CreateChildAdoc"] = false;
+    }
+
     if (checkCreateChildAdoc !== null) {
         settings["CreateChildAdoc"] = checkCreateChildAdoc === "true" ? true : false;
     }
-    if(settings["FlatThisGroup"] === true) {
-        settings["CreateChildAdoc"] = false;
+
+    if (checkAddParentSectionNumberToChild !== null) {
+        settings["AddParentSectionNumberToChild"] = checkAddParentSectionNumberToChild === "true" ? true : false;
     }
 
     if (checkOverwrite !== null) {
@@ -1342,12 +1358,16 @@ if (useDrivingView()) {
         var overwriteDrivingView = drivingView.prop("Overwrite") == null || drivingView.prop("Overwrite") == "true"
 
         var childDocs = [];
+        var createdFileNames = [];
         childDocs.push({
                     level: 0,
+                    childPrefix: "_",
+                    childCount: 0,
                     fileName: mainFileName,
                     filePath: exportFile,
                     content: (overwriteDrivingView ? "//WARNING! This file has been auto-generated. Do NOT edit it. Everything will be overwritten\n\n" : "") + drivingView.documentation + "\n\n",
-                    overwrite: overwriteDrivingView
+                    overwrite: overwriteDrivingView,
+                    flatThisGroup: false
                 });
         for (var i = 0; i < Sections.length; i++) {
 
@@ -1359,17 +1379,32 @@ if (useDrivingView()) {
                 // Continue appending to the parent document if popped
                 if (childDocs.length > 0) {
                     var parentDoc = childDocs[childDocs.length - 1];
-                    parentDoc.content += "\ninclude::" + finishedChild.fileName + "[leveloffset=+"+(finishedChild.level - parentDoc.level)+"]";
+                    if(finishedChild.flatThisGroup) {
+                        parentDoc.content += "\ninclude::" + finishedChild.fileName + "[]\n";
+                    } else {
+                        parentDoc.content += "\ninclude::" + finishedChild.fileName + "[leveloffset=+"+(finishedChild.level - parentDoc.level)+"]";
+                    }
                 }
             }
 
             if (Sections[i].settings["CreateChildAdoc"]) {
+                let parentDoc = childDocs[childDocs.length - 1];
+                parentDoc.childCount = parentDoc.childCount + 1;
+                var prefix = parentDoc.childPrefix;
+                if(Sections[i].settings["AddParentSectionNumberToChild"]) {
+                    var prefix = prefix +parentDoc.childCount+"_"
+                }
+                let fileName = generateUniqueFileName(prefix + generateLink(Sections[i].group.name) + ".adoc", createdFileNames);
+                createdFileNames.push(fileName);
                 childDocs.push({
+                    childPrefix: prefix,
+                    childCount: 0,
                     level: Sections[i].level,
-                    fileName: "_" + generateLink(Sections[i].group.name)+".adoc",
-                    filePath: path + "_" + generateLink(Sections[i].group.name)+".adoc",
+                    fileName: fileName,
+                    filePath: path + fileName,
                     content: Sections[i].settings["Overwrite"] == false ? "//This file is set to be not overwritten on regeneration." : "//WARNING! This file has been auto-generated. Do NOT edit it. Everything will be overwritten.\n\n",
-                    overwrite: Sections[i].settings["Overwrite"]
+                    overwrite: Sections[i].settings["Overwrite"],
+                    flatThisGroup: Sections[i].settings["FlatThisGroup"] == true
                 });
             }
             outInfo  = "";
@@ -1382,7 +1417,11 @@ if (useDrivingView()) {
             saveToFile(remainingChild.filePath, remainingChild.content, remainingChild.overwrite);
 
             if (childDocs.length > 0) {
-                childDocs[childDocs.length - 1].content += "\ninclude::" + remainingChild.fileName + "[leveloffset=+"+(remainingChild.level-childDocs[childDocs.length - 1].level)+"]";
+                if (remainingChild.flatThisGroup) {
+                    childDocs[childDocs.length - 1].content += "\ninclude::" + remainingChild.fileName + "[]\n";
+                } else {
+                    childDocs[childDocs.length - 1].content += "\ninclude::" + remainingChild.fileName + "[leveloffset=+"+(remainingChild.level-childDocs[childDocs.length - 1].level)+"]";
+                }
             }
         }
     }

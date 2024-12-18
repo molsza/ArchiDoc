@@ -25,16 +25,29 @@ asciidoctor {
     baseDirFollowsSourceFile()
     dependsOn asciidoctorGemsPrepare
     sourceDir '.'
-    sources {
-        include 'architecture/**/*.adoc'
-        include 'business/**/*.adoc'
-        include 'cr/**/*.adoc'
-        exclude '*/fragments/**'
-        exclude 'fragments/**'
-        exclude '**/_*'
+
+    if (project.hasProperty('docDir')) {
+        // Include only a single directory if 'docDir' is passed
+        sources {
+            include project.docDir+'/*.adoc'
+            exclude '*/fragments/**'
+            exclude 'fragments/**'
+            exclude '**/_*'
+        }
+    } else {
+        // Include all files in the default or provided directory
+        sources {
+            include 'architecture/**/*.adoc'
+            include 'business/**/*.adoc'
+            include 'cr/**/*.adoc'
+            exclude '*/fragments/**'
+            exclude 'fragments/**'
+            exclude '**/_*'
+        }
     }
+
     outputOptions {
-        backends 'html5'
+        backends = ['docbook', 'html5']
         //backends 'multipage_html5'
     }
     asciidoctorj {
@@ -104,6 +117,40 @@ asciidoctorPdf {
                 'idseparator': '-',
                 'plantuml-dir': file("${rootDir}/diagrams")
     }
+}
+
+def registerCopyTasks(String dirName) {
+    tasks.register("copyAssetsHtml5From${dirName.capitalize()}", Copy) {
+        from(dirName) {
+            include '**/images/**'
+            exclude '**/fragments/**', 'build/**'
+        }
+        into(layout.buildDirectory.dir("/docs/asciidoc/html5/${dirName}"))
+        includeEmptyDirs = false
+    }
+
+    tasks.register("copyAssetsDocbookFrom${dirName.capitalize()}", Copy) {
+        from(dirName) {
+            include '**/images/**'
+            exclude '**/fragmenty/**', 'build/**'
+        }
+        into(layout.buildDirectory.dir("/docs/asciidoc/docbook/${dirName}"))
+        includeEmptyDirs = false
+    }
+}
+
+// Register copy tasks for each source directory
+['architecture', 'cr', 'business'].each { dirName ->
+    registerCopyTasks(dirName)
+}
+
+// Aggregate task to call all copy tasks
+tasks.register('copyImages') {
+    dependsOn tasks.withType(Copy)
+}
+
+tasks.named('asciidoctor') {
+    finalizedBy(tasks.named('copyImages'))
 }
 
 confluencePublisher {
